@@ -44,44 +44,39 @@ architecture struct of phoenix_video is
 begin
 
 -- horizontal counter clock (pixel clock) 
-process (clk11) begin
-	if rising_edge(clk11) then
+process(clk11) begin
+	if falling_edge(clk11) then
 		hclk_i <= not hclk_i;
 	end if;
 end process;
 
 -- horizontal counter from 0x0A0 to 0x1FF : 352 pixels 
-process (hclk_i) begin
-	if rising_edge(hclk_i) then
-		if reset = '1' then
-			hcnt_i  <= (others=>'0');
-		else
-			hcnt_i  <= hcnt_i +1;
-			if hcnt_i = "111111111" then
-				hcnt_i <= "010100000";
+process(clk11) begin
+	if rising_edge(clk11) then
+		if hclk_i = '1' then
+			if reset = '1' then
+				hcnt_i  <= (others=>'0');
+				vcnt_i  <= (others=>'0');
+			else
+				hcnt_i  <= hcnt_i +1;
+				if hcnt_i = "111111111" then
+					hcnt_i <= "010100000";
+					vcnt_i  <= vcnt_i +1;
+					if vcnt_i = "11111111" then
+						vcnt_i <= "00000000";
+					end if;
+				end if;
 			end if;
 		end if;
 	end if;
 end process;
 
 -- vertical counter clock (line clock) = hblank
-process (hclk_i) begin
-	if rising_edge(hclk_i) then
-		if (hcnt_i(3) and hcnt_i(2) and hcnt_i(1)) = '1' then hstb_i <= not hcnt_i(9); end if;
-	end if;
-end process;
-
--- vertical clock from 0x00 to 0xFF : 256 lines 
-process (hstb_i) begin
-	if rising_edge(hstb_i) then
-		if reset = '1' then
-			vcnt_i  <= (others=>'0');
-		else
-			vcnt_i  <= vcnt_i +1;
-			if vcnt_i = "11111111" then
-				vcnt_i <= "00000000";
-			end if;
-		end if;  
+process(clk11) begin
+	if rising_edge(clk11) then
+		if hclk_i = '1' then
+			if (hcnt_i(3) and hcnt_i(2) and hcnt_i(1)) = '1' then hstb_i <= not hcnt_i(9); end if;
+		end if;
 	end if;
 end process;
 
@@ -109,14 +104,16 @@ rdy2_i <= not( not(hcnt_i(9)) and hcnt_i(7) and hcnt_i(6) and hcnt_i(5));
 j1 <= hcnt_i(6) and hcnt_i(4);
 k1 <= hstb_i;
 
-process (hclk_i) begin
-	if rising_edge(hclk_i) then
-		if (j1 xor k1) = '1' then
-			q1 <= j1;
-		elsif j1 = '1' then
-			q1 <= not q1;
-		else
-			q1 <= q1;
+process(clk11) begin
+	if rising_edge(clk11) then
+		if hclk_i = '1' then
+			if (j1 xor k1) = '1' then
+				q1 <= j1;
+			elsif j1 = '1' then
+				q1 <= not q1;
+			else
+				q1 <= q1;
+			end if;
 		end if;
 	end if;
 end process;
@@ -124,14 +121,16 @@ end process;
 j2 <= not hcnt_i(6) and hcnt_i(5);
 k2 <= hcnt_i(8) and hcnt_i(7) and hcnt_i(6) and hcnt_i(4);
 
-process (hclk_i) begin
-	if rising_edge(hclk_i) then
-		if (j2 xor k2) = '1' then
-			q2 <= j2;
-		elsif j2 = '1' then
-			q2 <= not q2;
-		else
-			q2 <= q2;
+process(clk11) begin
+	if rising_edge(clk11) then
+		if hclk_i = '1' then
+			if (j2 xor k2) = '1' then
+				q2 <= j2;
+			elsif j2 = '1' then
+				q2 <= not q2;
+			else
+				q2 <= q2;
+			end if;
 		end if;
 	end if;
 end process;
@@ -148,14 +147,16 @@ vblank       <= not vblank_n;
 hblank_frgrd <= hstb_i;
 hblank_bkgrd <= not(hcnt_i(9) and q1) and not(hcnt_i(9) and (q2));
 
-process (hclk_i) begin
-	if rising_edge(hclk_i) then
-		if hcnt_i = 191 then sync_hs <= '1'; end if;
-		if hcnt_i = 217 then sync_hs <= '0'; end if;
+process(clk11) begin
+	if rising_edge(clk11) then
+		if hclk_i = '1' then
+			if hcnt_i = 191 then sync_hs <= '1'; end if;
+			if hcnt_i = 217 then sync_hs <= '0'; end if;
 
-		if hcnt_i = 191 then
-			if vcnt_i = 223 then sync_vs <= '1'; end if;
-			if vcnt_i = 230 then sync_vs <= '0'; end if;
+			if hcnt_i = 191 then
+				if vcnt_i = 223 then sync_vs <= '1'; end if;
+				if vcnt_i = 230 then sync_vs <= '0'; end if;
+			end if;
 		end if;
 	end if;
 end process;

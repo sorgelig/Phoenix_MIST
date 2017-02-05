@@ -92,25 +92,16 @@ architecture struct of phoenix_mist is
   signal ascii_code : STD_LOGIC_VECTOR(6 DOWNTO 0);
   signal clk14k     : std_logic;
   signal clk8m     : std_logic;
-  signal clk16m     : std_logic;  
   signal ps2Clk     : std_logic;
   signal ps2Data    : std_logic;
   signal ps2_scancode : std_logic_vector(7 downto 0);
   signal kbd_joy0 		: std_logic_vector(7 downto 0);
-
-  signal osd_pclk : std_logic;
-  signal VGA_R_O  : std_logic_vector(5 downto 0);
-  signal VGA_G_O  : std_logic_vector(5 downto 0);
-  signal VGA_B_O  : std_logic_vector(5 downto 0);
-  signal VGA_HS_O : std_logic;
-  signal VGA_VS_O : std_logic;
 
 --  signal io_index : std_logic_vector(4 downto 0);
   signal scandoubler_disable : std_logic;
 
   signal hsync_out : std_logic;
   signal vsync_out : std_logic;
-  signal csync_out : std_logic;
 
 
 
@@ -206,25 +197,20 @@ begin
 dip_switch <= "00001111";
 
 --  OSD
-  osd_pclk <= clk16m when scandoubler_disable='0' else clk8m;
-
-  -- a minimig vga->scart cable expects a composite sync signal on the VGA_HS output 
-  -- and VCC on VGA_VS (to switch into rgb mode)
-  csync_out <= '1' when (hsync_out = vsync_out) else '0';
-  VGA_HS <= hsync_out when scandoubler_disable='0' else csync_out;
-  VGA_VS <= vsync_out when scandoubler_disable='0' else '1';
+  VGA_HS <= not hsync_out;
+  VGA_VS <= not vsync_out;
   
   osd_inst : osd
     port map (
-      pclk => osd_pclk,
+      pclk => clk8m,
       sdi => SPI_DI,
       sck => SPI_SCK,
       ss => SPI_SS3,
-      red_in => VGA_R_O,
-      green_in => VGA_G_O,
-      blue_in => VGA_B_O,
-      hs_in => VGA_HS_O,
-      vs_in => VGA_VS_O,
+      red_in => S_vga_r & S_vga_r & S_vga_r,
+      green_in => S_vga_g & S_vga_g & S_vga_g,
+      blue_in => S_vga_b & S_vga_b & S_vga_b,
+      hs_in => S_vga_hsync,
+      vs_in => S_vga_vsync,
       scanline_ena_h => status(3),
       red_out => VGA_R,
       green_out => VGA_G,
@@ -281,7 +267,6 @@ sound_string <= audio & audio & audio;
 		c0 => clk_pixel,
 		c1 => clk14k,
 		c2 => clk8m,
-		c3 => clk16m,		
       locked => clock_stable
   );
 
@@ -319,11 +304,5 @@ u_keyboard : keyboard
     audio_select => audio_select,
     audio        => audio
   );
-
-  VGA_R_O(5 downto 4) <= S_vga_r; VGA_R_O(3 downto 0) <= (others => S_vga_r(0));
-  VGA_G_O(5 downto 4) <= S_vga_g; VGA_G_O(3 downto 0) <= (others => S_vga_g(0));
-  VGA_B_O(5 downto 4) <= S_vga_b; VGA_B_O(3 downto 0) <= (others => S_vga_b(0));
-  VGA_HS_O <= not(S_vga_hsync xor S_vga_vsync);
-  VGA_VS_O <= '1';
 
 end struct;

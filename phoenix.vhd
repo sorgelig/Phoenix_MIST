@@ -10,47 +10,39 @@ use ieee.numeric_std.all;
 
 entity phoenix is
 generic (
-  C_test_picture: boolean := false;
-  C_tile_rom: boolean := true; -- false: disable tile ROM to try game logic on small FPGA
-  -- reduce ROMs: 14 is normal game, 13 will draw initial screen, 12 will repeatedly blink 1 line of garbage
-  C_autofire: boolean := true;
- -- C_audio: boolean := true;
-  C_prog_rom_addr_bits: integer range 12 to 14 := 14 
-
+	C_test_picture: boolean := false;
+	C_tile_rom: boolean := true; -- false: disable tile ROM to try game logic on small FPGA
+	-- reduce ROMs: 14 is normal game, 13 will draw initial screen, 12 will repeatedly blink 1 line of garbage
+	C_autofire: boolean := true;
+	-- C_audio: boolean := true;
+	C_prog_rom_addr_bits: integer range 12 to 14 := 14 
 );
 port(
- clk_pixel    : in std_logic; -- 11 MHz for TV, 25 MHz for VGA
- reset        : in std_logic;
+	clk_pixel    : in std_logic; -- 11 MHz for TV, 25 MHz for VGA
+	reset        : in std_logic;
 
--- osd_hex      : in std_logic_vector(63 downto 0) := (others => '0');
-
-
-
+	dip_switch   : in std_logic_vector(7 downto 0);
+	-- game controls, normal logic '1':pressed, '0':released
  
- dip_switch   : in std_logic_vector(7 downto 0);
- -- game controls, normal logic '1':pressed, '0':released
- 
- 
- btn_coin: in std_logic;
- btn_player_start: in std_logic_vector(1 downto 0);
- btn_fire, btn_left, btn_right, btn_barrier: in std_logic;
+	btn_coin: in std_logic;
+	btn_player_start: in std_logic_vector(1 downto 0);
+	btn_fire, btn_left, btn_right, btn_barrier: in std_logic;
 
- video_r      : out std_logic_vector(1 downto 0);
- video_g      : out std_logic_vector(1 downto 0);
- video_b      : out std_logic_vector(1 downto 0);
- video_clk    : out std_logic;
- video_csync  : out std_logic;
- video_vblank, video_hblank_bg, video_hblank_fg: out std_logic;
- video_hs     : out std_logic;
- video_vs     : out std_logic;
+	video_r      : out std_logic_vector(1 downto 0);
+	video_g      : out std_logic_vector(1 downto 0);
+	video_b      : out std_logic_vector(1 downto 0);
+	video_clk    : out std_logic;
+	video_vblank, video_hblank_bg, video_hblank_fg: out std_logic;
+	video_hs     : out std_logic;
+	video_vs     : out std_logic;
 
- sound_fire   : out std_logic; -- '1' when missile fires
- sound_explode: out std_logic; -- '1' when ship explodes
- sound_burn   : out std_logic; -- bird burns
- sound_fireball: out std_logic; -- bird explodes in 2 fireballs
- sound_ab     : out std_logic_vector(15 downto 0);
- audio_select : in std_logic_vector(2 downto 0) := (others => '0');
- audio        : out std_logic_vector(11 downto 0)
+	sound_fire   : out std_logic; -- '1' when missile fires
+	sound_explode: out std_logic; -- '1' when ship explodes
+	sound_burn   : out std_logic; -- bird burns
+	sound_fireball: out std_logic; -- bird explodes in 2 fireballs
+	sound_ab     : out std_logic_vector(15 downto 0);
+	audio_select : in std_logic_vector(2 downto 0) := (others => '0');
+	audio        : out std_logic_vector(11 downto 0)
 );
 end phoenix;
 
@@ -192,40 +184,6 @@ end generate;
       hclk_n <= not hclk;
     end if;
   end process;
-
---  -- VGA video generator - pixel clock synchronous
---  vgabitmap: entity work.vga
---  generic map -- workaround for wrong video size
---  (
---    C_resolution_x => 638,
---    C_hsync_front_porch => 18
---  )
---  port map (
---      clk_pixel => clk_pixel,
---      test_picture => '0', -- shows test picture when VGA is disabled (on startup)
---      fetch_next => S_vga_fetch_next,
---      line_repeat => open,
---      red_byte    => (others => '0'), -- framebuffer inputs not used
---      green_byte  => (others => '0'), -- rgb signal is synchronously generated
---      blue_byte   => (others => '0'), -- and replaced
---      beam_x(9 downto 1) => hcnt,
---      beam_x(0 downto 0) => open,
---      beam_y(9 downto 9) => open,
---      beam_y(8 downto 0) => S_vcnt,
---      vga_r(7 downto 6) => S_vga_r, vga_r(5 downto 0) => open,
---      vga_g(7 downto 6) => S_vga_g, vga_g(5 downto 0) => open,
---      vga_b(7 downto 6) => S_vga_b, vga_b(5 downto 0) => open,
---      vga_hsync => S_vga_hsync,
---      vga_vsync => S_vga_vsync,
---      vga_blank => S_vga_blank, -- '1' when outside of horizontal or vertical graphics area
---      vga_vblank => S_vga_vblank -- '1' when outside of vertical graphics area (used for vblank interrupt)
---  );
---  vga_hsync <= S_vga_hsync;
---  vga_vsync <= S_vga_vsync;
---  vcnt <= S_vcnt(8 downto 1);
-
---  vga_blank <= S_vga_blank;
---  vga_vblank <= S_vga_vblank;
 
 -- microprocessor 8085
 cpu8085 : entity work.T8080se
