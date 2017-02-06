@@ -327,11 +327,9 @@ set_global_assignment -name SOURCE_FILE phoenix_video.vhd
 set_global_assignment -name SOURCE_FILE phoenix_prog.vhd
 set_global_assignment -name SOURCE_FILE phoenix.vhd
 set_global_assignment -name VHDL_FILE dac.vhd
-set_global_assignment -name VHDL_FILE clock_diviner.vhd
 set_global_assignment -name VERILOG_FILE mist_io.v
 set_global_assignment -name VERILOG_FILE osd.v
 set_global_assignment -name VERILOG_FILE keyboard.v
-set_global_assignment -name VERILOG_FILE ps2_intf.v
 set_global_assignment -name SYSTEMVERILOG_FILE hq2x.sv
 set_global_assignment -name VERILOG_FILE scandoubler.v
 set_global_assignment -name SYSTEMVERILOG_FILE video_mixer.sv

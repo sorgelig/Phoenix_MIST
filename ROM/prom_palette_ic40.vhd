@@ -4,7 +4,6 @@ use ieee.std_logic_1164.all,ieee.numeric_std.all;
 entity prom_palette_ic40 is
 port (
 	clk  : in  std_logic;
-	ce   : in  std_logic;
 	addr : in  std_logic_vector(6 downto 0);
 	data : out std_logic_vector(2 downto 0)
 );
@@ -25,7 +24,7 @@ begin
 process(clk)
 begin
 	if rising_edge(clk) then
-		if(ce = '1') then data <= rom_data(to_integer(unsigned(addr))); end if;
+		data <= rom_data(to_integer(unsigned(addr)));
 	end if;
 end process;
 end architecture;

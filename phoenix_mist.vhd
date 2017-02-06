@@ -36,12 +36,12 @@ entity phoenix_mist is
 port
 (
 	CLOCK_27			: in std_logic;
-	LED					: out std_logic;
+	LED				: out std_logic;
 	VGA_R				: out std_logic_vector(5 downto 0); 
 	VGA_G				: out std_logic_vector(5 downto 0);
 	VGA_B				: out std_logic_vector(5 downto 0);
-	VGA_HS				: out std_logic;
-	VGA_VS				: out std_logic;
+	VGA_HS			: out std_logic;
+	VGA_VS			: out std_logic;
 	SPI_SCK 			: in std_logic;
 	SPI_DI 			: in std_logic;
 	SPI_DO 			: out std_logic;
@@ -54,58 +54,39 @@ port
 end;
 
 architecture struct of phoenix_mist is
-  signal clk_pixel: std_logic;
 
-  signal audio: std_logic_vector(11 downto 0);
-  signal S_vga_r, S_vga_g, S_vga_b: std_logic_vector(1 downto 0);
-  signal S_vga_r8, S_vga_g8, S_vga_b8: std_logic_vector(7 downto 0);
-  signal S_vga_vsync, S_vga_hsync: std_logic;
+  signal clk          : std_logic;
+  signal clk_88m      : std_logic;
+  signal reset        : std_logic;
+  signal clock_stable : std_logic;
 
-  signal tmds_d: std_logic_vector(3 downto 0);
-  signal tx_in: std_logic_vector(29 downto 0);
+  signal audio        : std_logic_vector(11 downto 0);
+  signal video_r, video_g, video_b: std_logic_vector(1 downto 0);
+  signal vsync, hsync : std_logic;
 
-  signal kbd_intr      : std_logic;
-  signal kbd_scancode  : std_logic_vector(7 downto 0);
-  signal JoyPCFRLDU    : std_logic_vector(7 downto 0);
+  signal dip_switch   : std_logic_vector(7 downto 0);-- := (others => '0');
+  signal status       : std_logic_vector(31 downto 0);
+  signal buttons      : std_logic_vector(1 downto 0);
+  signal scandoubler_disable : std_logic;
+  signal ypbpr        : std_logic;
+  signal ce_pix       : std_logic;
+  
+  signal scanlines    : std_logic_vector(1 downto 0);
+  signal hq2x         : std_logic;
 
   signal coin         : std_logic;
   signal player_start : std_logic_vector(1 downto 0);
   signal button_left, button_right, button_protect, button_fire: std_logic;
-
-  signal reset        : std_logic;
-  signal clock_stable : std_logic;
-  signal dip_switch   : std_logic_vector(7 downto 0);-- := (others => '0');
-  signal audio_select : std_logic_vector(2 downto 0);-- is sw(10 downto 8);
-
-  -- User IO
-  signal buttons    : std_logic_vector(1 downto 0);
-  signal joy        : std_logic_vector(7 downto 0);
-  signal joy0       : std_logic_vector(7 downto 0);
-  signal joy1       : std_logic_vector(7 downto 0);
-  signal status     : std_logic_vector(31 downto 0);
-  signal ascii_new  : std_logic;
-  signal ascii_code : STD_LOGIC_VECTOR(6 DOWNTO 0);
-  signal clk44m     : std_logic;
-  signal clk50m     : std_logic;
-  signal clk10m     : std_logic;
-  signal ps2Clk     : std_logic;
-  signal ps2Data    : std_logic;
-  signal ps2_scancode : std_logic_vector(7 downto 0);
-  signal kbd_joy0 		: std_logic_vector(7 downto 0);
-
-  signal scandoubler_disable : std_logic;
-  signal ypbpr     : std_logic;
-  signal ce_pix    : std_logic;
-
-  signal video_vblank    : std_logic;
-  signal video_hblank_bg : std_logic;
-  signal video_hblank_fg : std_logic;
-  
-  signal R,G,B      : std_logic_vector(2 downto 0);
+  signal joy          : std_logic_vector(7 downto 0);
+  signal joy0         : std_logic_vector(7 downto 0);
+  signal joy1         : std_logic_vector(7 downto 0);
+  signal ps2Clk       : std_logic;
+  signal ps2Data      : std_logic;
+  signal kbd_joy0     : std_logic_vector(7 downto 0);
 
 
 -- config string used by the io controller to fill the OSD
-  constant CONF_STR : string := "PHOENIX;;T1,Coin;T2,Player 1 Start;T3,Player 2 Start;T5,Reset;V,v0.1;";
+  constant CONF_STR : string := "PHOENIX;;T1,Coin;T2,Player 1 Start;T3,Player 2 Start;O67,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%;T5,Reset;V,v0.1;";
 
 	function to_slv(s: string) return std_logic_vector is
 		constant ss: string(1 to s'length) := s;
@@ -181,13 +162,13 @@ begin
 --     OFF           ON            4,000          40,000
 --     ON            ON            3,000          30,000
  
---Cocktail,Factory,Factory,Factory,Bonus2,Bonus1,Ships2,Ships1
-dip_switch <= "00001111";
+	--Cocktail,Factory,Factory,Factory,Bonus2,Bonus1,Ships2,Ships1
+	dip_switch <= "00001111";
 
 	mist_io_inst : mist_io
 	generic map (STRLEN => CONF_STR'length)
 	port map (
-		clk_sys => clk_pixel,
+		clk_sys => clk,
 		SPI_SCK => SPI_SCK,
 		CONF_DATA0 => CONF_DATA0,
 		SPI_DI => SPI_DI,
@@ -210,7 +191,7 @@ dip_switch <= "00001111";
   --
 	u_dac1 : entity work.dac
 	port  map(
-		clk_i   => clk_pixel,
+		clk_i   => clk_88m,
 		res_n_i => not reset,
 		dac_i   => audio,
 		dac_o   => AUDIO_L
@@ -218,7 +199,7 @@ dip_switch <= "00001111";
 	 
 	u_dac2 : entity work.dac
 	port  map(
-		clk_i   => clk_pixel,
+		clk_i   => clk_88m,
 		res_n_i => not reset,
 		dac_i   => audio,
 		dac_o   => AUDIO_R
@@ -228,20 +209,16 @@ dip_switch <= "00001111";
 	pll: entity work.pll27
 	port map(
       inclk0 => CLOCK_27, 
-		c0 => clk44m,
-		c1 => clk_pixel,
-		c2 => clk50m,
-		c3 => clk10m,
+		c0 => clk_88m,
+		c1 => clk,
       locked => clock_stable
 	);
 
 	reset <= status(0) or status(5) or buttons(1) or not clock_stable; 
 
--- dip_switch(3 downto 0) <= sw(4 downto 1);
-
 	u_keyboard : keyboard
 	port  map(
-		clk 				=> clk_pixel,
+		clk 				=> clk,
 		reset 			=> reset,
 		ps2_kbd_clk 	=> ps2Clk,
 		ps2_kbd_data 	=> ps2Data,
@@ -251,9 +228,7 @@ dip_switch <= "00001111";
 	phoenix : entity work.phoenix
 	port map
 	(
-		clk_pixel    => clk_pixel,
-		clk50m       => clk50m,
-		clk10m       => clk10m,
+		clk          => clk,
 		reset        => reset,
 		ce_pix       => ce_pix,
 		dip_switch   => dip_switch,
@@ -264,25 +239,22 @@ dip_switch <= "00001111";
 		btn_right    => joy(3) or kbd_joy0(4) or kbd_joy0(7),
 		btn_barrier  => joy(0) or kbd_joy0(2),--TAB
 		btn_fire     => joy(4) or kbd_joy0(0),
-		video_r      => S_vga_r,
-		video_g      => S_vga_g,
-		video_b      => S_vga_b,
-		video_hs     => S_vga_hsync,
-		video_vs     => S_vga_vsync,
-		audio_select => audio_select,
-		audio        => audio,
-		video_vblank => video_vblank,
-		video_hblank_bg => video_hblank_bg,
-		video_hblank_fg => video_hblank_fg
+		video_r      => video_r,
+		video_g      => video_g,
+		video_b      => video_b,
+		video_hs     => hsync,
+		video_vs     => vsync,
+		audio_select => "000",
+		audio        => audio
 	);
-	
-	R <= "000" when (video_vblank or video_hblank_bg or video_hblank_fg) = '1' else S_vga_r & S_vga_r(1);
-	G <= "000" when (video_vblank or video_hblank_bg or video_hblank_fg) = '1' else S_vga_g & S_vga_g(1);
-	B <= "000" when (video_vblank or video_hblank_bg or video_hblank_fg) = '1' else S_vga_b & S_vga_b(1);
+
+	scanlines(0) <= '1' when status(7 downto 6) = "10" else '0';
+	scanlines(1) <= '1' when status(7 downto 6) = "11" else '0';
+	hq2x         <= '1' when status(7 downto 6) = "01" else '0';
 
 	vmixer : video_mixer
 	port map (
-		clk_sys => clk44m,
+		clk_sys => clk_88m,
 		ce_pix  => ce_pix,
 		ce_pix_actual => ce_pix,
 
@@ -290,17 +262,17 @@ dip_switch <= "00001111";
 		SPI_SS3 => SPI_SS3,
 		SPI_DI => SPI_DI,
 
-		scanlines => "00", -- scanlines,
+		scanlines => scanlines,
 		scandoubler_disable => scandoubler_disable,
-		hq2x => '1', --hq2x,
+		hq2x => hq2x,
 		ypbpr => ypbpr,
 		ypbpr_full => '1',
 
-		R => R,
-		G => G,
-		B => B,
-		HSync => S_vga_hsync,
-		VSync => S_vga_vsync,
+		R => video_r & video_r(1),
+		G => video_g & video_g(1),
+		B => video_b & video_b(1),
+		HSync => hsync,
+		VSync => vsync,
 		line_start => '0',
 		mono => '0',
 
@@ -311,5 +283,6 @@ dip_switch <= "00001111";
 		VGA_HS => VGA_HS
 	);
 
+	LED <= '0';
 
 end struct;

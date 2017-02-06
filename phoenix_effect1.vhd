@@ -15,120 +15,107 @@ use ieee.math_real.all;
 
 entity phoenix_effect1 is
 generic(
- -- Command
- Cmd_Fs: real := 25.0; -- MHz
- Cmd_V: real := 12.0; -- V
- Cmd_Vd: real := 0.46; -- V
- Cmd_Vce: real := 0.2; -- V
- Cmd_R1: real := 100.0; -- k
- Cmd_R2: real := 33.0; -- k
- Cmd_R3: real := 0.47; -- k
- Cmd_C: real := 6.8; -- uF
- Cmd_Div2n: integer := 8; -- bits divisor
- Cmd_bits: integer := 16; -- bits counter
- -- Oscillator
- Osc_Fs: real := 25.0; -- MHz
- Osc_Vb: real := 5.0; -- V
- Osc_Vce: real := 0.2; -- V
- Osc_R1: real := 47.0; -- k
- Osc_R2: real := 47.0; -- k
- Osc_C: real := 0.001; -- uF
- Osc_Div2n: integer := 7; -- bits divisor
- Osc_bits: integer := 6; -- bits counter
- -- Filter
- Filt_Fs: real := 25.0; -- MHz
- Filt_V1: real := 5.0; -- V
- Filt_V2: real := 0.0; -- V
- Filt_R1: real := 100.0; -- k
- Filt_R2: real := 10.0; -- k
- Filt_C: real := 0.047; -- uF
- Filt_Div2n: integer := 7; -- bits divisor
- Filt_bits: integer := 8;  -- bits counter
+	-- Command
+	Cmd_Fs: real := 11.0; -- MHz
+	Cmd_V: real := 12.0; -- V
+	Cmd_Vd: real := 0.46; -- V
+	Cmd_Vce: real := 0.2; -- V
+	Cmd_R1: real := 100.0; -- k
+	Cmd_R2: real := 33.0; -- k
+	Cmd_R3: real := 0.47; -- k
+	Cmd_C: real := 6.8; -- uF
+	Cmd_Div2n: integer := 8; -- bits divisor
+	Cmd_bits: integer := 16; -- bits counter
+	-- Oscillator
+	Osc_Fs: real := 11.0; -- MHz
+	Osc_Vb: real := 5.0; -- V
+	Osc_Vce: real := 0.2; -- V
+	Osc_R1: real := 47.0; -- k
+	Osc_R2: real := 47.0; -- k
+	Osc_C: real := 0.001; -- uF
+	Osc_Div2n: integer := 7; -- bits divisor
+	Osc_bits: integer := 6; -- bits counter
+	-- Filter
+	Filt_Fs: real := 11.0; -- MHz
+	Filt_V1: real := 5.0; -- V
+	Filt_V2: real := 0.0; -- V
+	Filt_R1: real := 100.0; -- k
+	Filt_R2: real := 10.0; -- k
+	Filt_C: real := 0.047; -- uF
+	Filt_Div2n: integer := 7; -- bits divisor
+	Filt_bits: integer := 8;  -- bits counter
 
- -- For 25MHz
- --C_commande_VF1: integer := 43559;
- --C_commande_k1: integer := 16477;
- --C_commande_VF2: integer := 9300;
- --C_commande_k2: integer := 306;
- --C_oscillateur_VF1: integer := 65535;
- --C_oscillateur_k1: integer := 18;
- --C_oscillateur_VF2: integer := 2621;
- --C_oscillateur_k2: integer := 9;
- --C_filter_VF1: integer := 65535;
- --C_filter_k1: integer := 83;
- --C_filter_VF2: integer := 0;
- --C_filter_k2: integer := 83;
-
- Vmax: real := 5.0; -- V
- Vmax_bits: integer := 16 -- number of bits to represent vmax
+	Vmax: real := 5.0; -- V
+	Vmax_bits: integer := 16 -- number of bits to represent vmax
 );
 port(
- clk50    : in std_logic;
- clk10    : in std_logic;
- reset    : in std_logic;
- trigger  : in std_logic;
- filter   : in std_logic;
- divider  : in std_logic_vector(3 downto 0);
- snd      : out std_logic_vector(7 downto 0)
-); end phoenix_effect1;
+	clk      : in std_logic;
+	reset    : in std_logic;
+	trigger  : in std_logic;
+	filter   : in std_logic;
+	divider  : in std_logic_vector(3 downto 0);
+	snd      : out std_logic_vector(7 downto 0)
+);
+end phoenix_effect1;
 
 architecture struct of phoenix_effect1 is
- -- integer representation of voltage, full range
- constant IVmax: integer := integer(2**Vmax_bits)-1;
- -- command --
- constant Cmd_div: integer := integer(2**Cmd_Div2n);
- -- command charge
- constant Cmd_VFc: real := (Cmd_V*Cmd_R2 + Cmd_Vd*Cmd_R1)/(Cmd_R1 + Cmd_R2); -- V
- constant Cmd_RCc: real := Cmd_R1*Cmd_R2/(Cmd_R1 + Cmd_R2)*Cmd_C/1000.0; -- s
- constant Cmd_ikc: integer := integer(Cmd_Fs * 1.0E6 * Cmd_RCc / 2.0**Cmd_Div2n);
- constant Cmd_iVFc: integer := integer(Cmd_VFc * real(IVmax)/Vmax);
- -- command discharge
- constant Cmd_VFd: real := (Cmd_V/Cmd_R1+Cmd_Vd/Cmd_R2+(Cmd_Vd+Cmd_Vce)/Cmd_R3)/(1.0/Cmd_R1+1.0/Cmd_R2+1.0/Cmd_R3); -- V
- constant Cmd_RCd: real := 1.0/(1.0/Cmd_R1+1.0/Cmd_R2+1.0/Cmd_R3)*Cmd_C/1000.0; -- s
- constant Cmd_ikd: integer := integer(Cmd_Fs * 1.0E6 * Cmd_RCd / 2.0**Cmd_Div2n);
- constant Cmd_iVFd: integer := integer(Cmd_VFd * real(IVmax)/Vmax);
 
- -- oscillator
- constant Osc_div: integer := integer(2**Osc_Div2n);
- -- oscillator charge
- constant Osc_VFc: real := Osc_Vb; -- V
- constant Osc_RCc: real := (Osc_R1+Osc_R2)*Osc_C/1000.0; -- s
- constant Osc_ikc: integer := integer(Osc_Fs * 1.0E6 * Osc_RCc / 2.0**Osc_Div2n);
- constant Osc_iVFc: integer := integer(Osc_VFc * real(IVmax)/Vmax);
- -- oscillator discharge
- constant Osc_VFd: real := Osc_Vce; -- V
- constant Osc_RCd: real := Osc_R2*Osc_C/1000.0; -- s
- constant Osc_ikd: integer := integer(Osc_Fs * 1.0E6 * Osc_RCd / 2.0**Osc_Div2n);
- constant Osc_iVFd: integer := integer(Osc_VFd * real(IVmax)/Vmax);
+-- integer representation of voltage, full range
+constant IVmax: integer := integer(2**Vmax_bits)-1;
+-- command --
+constant Cmd_div: integer := integer(2**Cmd_Div2n);
+-- command charge
+constant Cmd_VFc: real := (Cmd_V*Cmd_R2 + Cmd_Vd*Cmd_R1)/(Cmd_R1 + Cmd_R2); -- V
+constant Cmd_RCc: real := Cmd_R1*Cmd_R2/(Cmd_R1 + Cmd_R2)*Cmd_C/1000.0; -- s
+constant Cmd_ikc: integer := integer(Cmd_Fs * 1.0E6 * Cmd_RCc / 2.0**Cmd_Div2n);
+constant Cmd_iVFc: integer := integer(Cmd_VFc * real(IVmax)/Vmax);
+-- command discharge
+constant Cmd_VFd: real := (Cmd_V/Cmd_R1+Cmd_Vd/Cmd_R2+(Cmd_Vd+Cmd_Vce)/Cmd_R3)/(1.0/Cmd_R1+1.0/Cmd_R2+1.0/Cmd_R3); -- V
+constant Cmd_RCd: real := 1.0/(1.0/Cmd_R1+1.0/Cmd_R2+1.0/Cmd_R3)*Cmd_C/1000.0; -- s
+constant Cmd_ikd: integer := integer(Cmd_Fs * 1.0E6 * Cmd_RCd / 2.0**Cmd_Div2n);
+constant Cmd_iVFd: integer := integer(Cmd_VFd * real(IVmax)/Vmax);
 
- -- filter
- constant Filt_div: integer := integer(2**Filt_Div2n);
- -- filter charge
- constant Filt_VFc: real := Filt_V1; -- V
- constant Filt_RCc: real := 1.0/(1.0/Filt_R1+1.0/Filt_R2)*Filt_C/1000.0; -- s
- constant Filt_ikc: integer := integer(Filt_Fs * 1.0E6 * Filt_RCc / 2.0**Filt_Div2n);
- constant Filt_iVFc: integer := integer(Filt_VFc * real(IVmax)/Vmax);
- -- filter discharge
- constant Filt_VFd: real := Filt_V2; -- V
- constant Filt_RCd: real := Filt_RCc; -- s
- constant Filt_ikd: integer := integer(Filt_Fs * 1.0E6 * Filt_RCd / 2.0**Filt_Div2n);
- constant Filt_iVFd: integer := integer(Filt_VFd * real(IVmax)/Vmax);
+-- oscillator
+constant Osc_div: integer := integer(2**Osc_Div2n);
+-- oscillator charge
+constant Osc_VFc: real := Osc_Vb; -- V
+constant Osc_RCc: real := (Osc_R1+Osc_R2)*Osc_C/1000.0; -- s
+constant Osc_ikc: integer := integer(Osc_Fs * 1.0E6 * Osc_RCc / 2.0**Osc_Div2n);
+constant Osc_iVFc: integer := integer(Osc_VFc * real(IVmax)/Vmax);
+-- oscillator discharge
+constant Osc_VFd: real := Osc_Vce; -- V
+constant Osc_RCd: real := Osc_R2*Osc_C/1000.0; -- s
+constant Osc_ikd: integer := integer(Osc_Fs * 1.0E6 * Osc_RCd / 2.0**Osc_Div2n);
+constant Osc_iVFd: integer := integer(Osc_VFd * real(IVmax)/Vmax);
 
- function imax(x,y: integer) return integer is
- begin
-  if x > y then
-   return x;
-  else
-   return y;
-  end if;
- end imax;
+-- filter
+constant Filt_div: integer := integer(2**Filt_Div2n);
+-- filter charge
+constant Filt_VFc: real := Filt_V1; -- V
+constant Filt_RCc: real := 1.0/(1.0/Filt_R1+1.0/Filt_R2)*Filt_C/1000.0; -- s
+constant Filt_ikc: integer := integer(Filt_Fs * 1.0E6 * Filt_RCc / 2.0**Filt_Div2n);
+constant Filt_iVFc: integer := integer(Filt_VFc * real(IVmax)/Vmax);
+-- filter discharge
+constant Filt_VFd: real := Filt_V2; -- V
+constant Filt_RCd: real := Filt_RCc; -- s
+constant Filt_ikd: integer := integer(Filt_Fs * 1.0E6 * Filt_RCd / 2.0**Filt_Div2n);
+constant Filt_iVFd: integer := integer(Filt_VFd * real(IVmax)/Vmax);
 
- signal u_c1  : unsigned(15 downto 0) := (others => '0');
- signal u_c2  : unsigned(15 downto 0) := (others => '0');
- signal flip  : std_logic := '0';
+function imax(x,y: integer) return integer is begin
+	if x > y then
+		return x;
+	else
+		return y;
+	end if;
+end imax;
 
- signal u_cf  : unsigned(15 downto 0) := (others => '0');
- signal sound : std_logic := '0';
+signal u_c1  : unsigned(15 downto 0) := (others => '0');
+signal u_c2  : unsigned(15 downto 0) := (others => '0');
+signal flip  : std_logic := '0';
+
+signal u_cf  : unsigned(15 downto 0) := (others => '0');
+signal sound : std_logic := '0';
+
 begin
 
 -- Commande
@@ -137,28 +124,28 @@ begin
 -- Decharge : VF2 =  9300, k2 =  123 (R1//R2//R3)
 -- Div = 2^8
 
-process (clk10)
- variable cnt: integer range 0 to imax(Cmd_ikc,Cmd_ikd) := 0;
+process (clk)
+	variable cnt: integer range 0 to imax(Cmd_ikc,Cmd_ikd) := 0;
 begin
- if rising_edge(clk10) then
-  if reset = '1' then
-   cnt  := 0;
-   u_c1 <= (others => '0');
-  else
-   cnt := cnt + 1;
-   if trigger = '1' then
-    if cnt = Cmd_ikc then
-     cnt := 0;
-     u_c1 <= u_c1 + (Cmd_iVFc - u_c1)/Cmd_div;
-    end if;
-   else
-    if cnt = Cmd_ikd then
-     cnt := 0;
-     u_c1 <= u_c1 - (u_c1 - Cmd_iVFd)/Cmd_div;
-    end if; 
-   end if;
-  end if;
- end if;
+	if rising_edge(clk) then
+		if reset = '1' then
+			cnt  := 0;
+			u_c1 <= (others => '0');
+		else
+			cnt := cnt + 1;
+			if trigger = '1' then
+				if cnt = Cmd_ikc then
+					cnt := 0;
+					u_c1 <= u_c1 + (Cmd_iVFc - u_c1)/Cmd_div;
+				end if;
+			else
+				if cnt = Cmd_ikd then
+					cnt := 0;
+					u_c1 <= u_c1 - (u_c1 - Cmd_iVFd)/Cmd_div;
+				end if; 
+			end if;
+		end if;
+	end if;
 end process;
 
 -- Oscillateur
@@ -171,11 +158,11 @@ end process;
 -- LS163 : Count up, Sync load when 0xF (no toggle sound if divider = 0xF)
 -- LS74  : Divide by 2
 
-process (clk50)
+process (clk)
 	variable cnt: integer range 0 to imax(Osc_ikc,Osc_ikd) := 0;
 	variable cnt2: unsigned(3 downto 0) := (others => '0');
 begin
-	if rising_edge(clk50) then
+	if rising_edge(clk) then
 		if reset = '1' then
 			cnt  := 0;
 			u_c2 <= (others => '0');
@@ -214,31 +201,30 @@ end process;
 -- Decharge : VF2=    0 , k2 = 33 (R1//R2)
 -- Div = 2^7
 
-process (clk10)
- variable cnt: integer range 0 to imax(Filt_ikc,Filt_ikd) := 0;
+process (clk)
+	variable cnt: integer range 0 to imax(Filt_ikc,Filt_ikd) := 0;
 begin
- if rising_edge(clk10) then
-  if reset = '1' then
-   cnt  := 0;
-   u_cf <= (others => '0');
-  else
-   cnt := cnt + 1;
-   if sound = '1' then
-    if cnt = Filt_ikc then
-     cnt := 0;
-     u_cf <= u_cf + (Filt_iVFc - u_cf)/Filt_div;
-    end if;
-   else
-    if cnt = Filt_ikd then
-     cnt := 0;
-     u_cf <= u_cf - (u_cf - Filt_iVFd)/Filt_div;
-    end if; 
-   end if;
-  end if;
- end if;
+	if rising_edge(clk) then
+		if reset = '1' then
+			cnt  := 0;
+			u_cf <= (others => '0');
+		else
+			cnt := cnt + 1;
+			if sound = '1' then
+				if cnt = Filt_ikc then
+					cnt := 0;
+					u_cf <= u_cf + (Filt_iVFc - u_cf)/Filt_div;
+				end if;
+			else
+				if cnt = Filt_ikd then
+					cnt := 0;
+					u_cf <= u_cf - (u_cf - Filt_iVFd)/Filt_div;
+				end if; 
+			end if;
+		end if;
+	end if;
 end process;
  
-with filter select 
- snd <= std_logic_vector(u_cf(15 downto 8)) when '1',  sound&"0000000" when others;
+with filter select snd <= std_logic_vector(u_cf(15 downto 8)) when '1',  sound&"0000000" when others;
 
 end struct;

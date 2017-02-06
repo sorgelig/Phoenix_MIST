@@ -18,12 +18,10 @@ generic (
 	C_prog_rom_addr_bits: integer range 12 to 14 := 14 
 );
 port(
-	clk_pixel    : in std_logic; -- 11 MHz for TV, 25 MHz for VGA
+	clk          : in std_logic; -- 11 MHz for TV, 25 MHz for VGA
 	reset        : in std_logic;
 	ce_pix       : out std_logic;
 	
-	clk50m, clk10m : in std_logic;
-
 	dip_switch   : in std_logic_vector(7 downto 0);
 	-- game controls, normal logic '1':pressed, '0':released
  
@@ -144,9 +142,9 @@ G_not_autofire: if not C_autofire generate
 end generate;
 
 G_yes_autofire: if C_autofire generate
-  process(clk_pixel)
+  process(clk)
   begin
-    if rising_edge(clk_pixel) then
+    if rising_edge(clk) then
       if btn_fire='1' then
         R_autofire <= R_autofire-1;
       else
@@ -157,11 +155,10 @@ G_yes_autofire: if C_autofire generate
   buttons(0) <= not R_autofire(R_autofire'high);
 end generate;
 
-  G_tv_vga_helper:
-  entity work.phoenix_video
+  video: entity work.phoenix_video
   port map
   (
-    clk11    => clk_pixel,
+    clk11    => clk,
 	 ce_pix   => ce_pix1,
     hcnt     => hcnt,
     vcnt     => vcnt,
@@ -186,7 +183,7 @@ generic map
 )
 port map(
 	RESET_n => reset_n,
-	CLK     => clk_pixel,
+	CLK     => clk,
 	CLKEN  => '1', -- fixme: use it to make 5.5 MHz clock average
 	READY  => rdy,
 	HOLD  => '1',
@@ -220,9 +217,9 @@ bkgnd_ram_adr <= player2 & cpu_adr(9 downto 0) when adrsel ='0' else player2 & v
 
 -- demux cpu data to registers : background scrolling, sound control,
 -- player id (1/2), palette color set. 
-process (clk_pixel)
+process (clk)
 begin
- if rising_edge(clk_pixel) then
+ if rising_edge(clk) then
   if cpu_wr_n = '0' then
    case cpu_adr(14 downto 10) is
     when "10110" => bkgnd_offset <= cpu_do;
@@ -257,9 +254,9 @@ bkgnd_graph_adr <= bkgnd_tile_id & vert_cnt(2 downto 0);
 
 -- latch foreground/background next graphix byte, high bit and low bit
 -- and palette_ids (fr_lin, bklin)
-process (clk_pixel)
+process (clk)
 begin
- if rising_edge(clk_pixel) then
+ if rising_edge(clk) then
   if (pl2_cocktail = '0' and (frgnd_horz_cnt(2 downto 0) = "111")) or
      (pl2_cocktail = '1' and (frgnd_horz_cnt(2 downto 0) = "000")) then
      frgnd_bit0_graph_r <= frgnd_bit0_graph;
@@ -293,16 +290,15 @@ palette_adr <= '0' & color_set & color_id;
 video_vblank <= vblank;
 video_hblank_fg <= hblank_frgrd;
 video_hblank_bg <= hblank_bkgrd;
-video_r     <= rgb_1(0) & rgb_0(0);
-video_g     <= rgb_1(2) & rgb_0(2);
-video_b     <= rgb_1(1) & rgb_0(1);
+video_r     <= rgb_1(0) & rgb_0(0) when (hcnt>=192) else "00";
+video_g     <= rgb_1(2) & rgb_0(2) when (hcnt>=192) else "00";
+video_b     <= rgb_1(1) & rgb_0(1) when (hcnt>=192) else "00";
 
 G_yes_tile_rom: if C_tile_rom generate
 -- foreground graphix ROM bit0
 frgnd_bit0 : entity work.prom_ic39
 port map(
-	clk  => clk_pixel,
-	ce   => not ce_pix1,
+	clk  => clk,
 	addr => frgnd_graph_adr,
 	data => frgnd_bit0_graph
 );
@@ -310,8 +306,7 @@ port map(
 -- foreground graphix ROM bit1
 frgnd_bit1 : entity work.prom_ic40
 port map(
-	clk  => clk_pixel,
-	ce   => not ce_pix1,
+	clk  => clk,
 	addr => frgnd_graph_adr,
 	data => frgnd_bit1_graph
 );
@@ -319,8 +314,7 @@ port map(
 -- background graphix ROM bit0
 bkgnd_bit0 : entity work.prom_ic23
 port map(
-	clk  => clk_pixel,
-	ce   => not ce_pix1,
+	clk  => clk,
 	addr => bkgnd_graph_adr,
 	data => bkgnd_bit0_graph
 );
@@ -328,8 +322,7 @@ port map(
 -- background graphix ROM bit1
 bkgnd_bit1 : entity work.prom_ic24
 port map(
-	clk  => clk_pixel,
-	ce   => not ce_pix1,
+	clk  => clk,
 	addr => bkgnd_graph_adr,
 	data => bkgnd_bit1_graph
 );
@@ -337,8 +330,7 @@ port map(
 -- color palette ROM RBG low intensity
 palette_0 : entity work.prom_palette_ic40
 port map(
-	clk  => clk_pixel,
-	ce   => ce_pix1,
+	clk  => clk,
 	addr => palette_adr(6 downto 0),
 	data => rgb_0
 );
@@ -346,28 +338,27 @@ port map(
 -- color palette ROM RBG high intensity
 palette_1 : entity work.prom_palette_ic41
 port map(
-	clk  => clk_pixel,
-	ce   => ce_pix1,
+	clk  => clk,
 	addr => palette_adr(6 downto 0),
 	data => rgb_1
 );
 end generate;
 
 G_no_tile_rom: if not C_tile_rom generate
-  -- dummy replacement for missing tile ROMs
-  frgnd_bit0_graph <= frgnd_graph_adr(10 downto 3);
-  frgnd_bit1_graph <= "00000000";
-  bkgnd_bit0_graph <= bkgnd_graph_adr(10 downto 3);
-  bkgnd_bit1_graph <= "00000000";
-  rgb_0 <= palette_adr(2 downto 0);
-  rgb_1 <= palette_adr(2 downto 0);
+	-- dummy replacement for missing tile ROMs
+	frgnd_bit0_graph <= frgnd_graph_adr(10 downto 3);
+	frgnd_bit1_graph <= "00000000";
+	bkgnd_bit0_graph <= bkgnd_graph_adr(10 downto 3);
+	bkgnd_bit1_graph <= "00000000";
+	rgb_0 <= palette_adr(2 downto 0);
+	rgb_1 <= palette_adr(2 downto 0);
 end generate;
 
 -- Program PROM
 S_prog_rom_addr(C_prog_rom_addr_bits-1 downto 0) <= cpu_adr(C_prog_rom_addr_bits-1 downto 0);
 prog : entity work.phoenix_prog
 port map(
-	clk  => clk_pixel,
+	clk  => clk,
 	addr => S_prog_rom_addr,
 	data => prog_do
 );
@@ -377,11 +368,11 @@ port map(
 frgnd_ram : entity work.gen_ram
 generic map( dWidth => 8, aWidth => 11)
 port map(
- clk  => clk_pixel,
- we   => frgnd_ram_we,
- addr => frgnd_ram_adr,
- d    => cpu_do,
- q    => frgnd_ram_do
+	clk  => clk,
+	we   => frgnd_ram_we,
+	addr => frgnd_ram_adr,
+	d    => cpu_do,
+	q    => frgnd_ram_do
 );
 
 -- background RAM   0x4800-0x4B3F
@@ -390,47 +381,44 @@ port map(
 bkgnd_ram : entity work.gen_ram
 generic map( dWidth => 8, aWidth => 11)
 port map(
- clk  => clk_pixel,
- we   => bkgnd_ram_we,
- addr => bkgnd_ram_adr,
- d    => cpu_do,
- q    => bkgnd_ram_do
+	clk  => clk,
+	we   => bkgnd_ram_we,
+	addr => bkgnd_ram_adr,
+	d    => cpu_do,
+	q    => bkgnd_ram_do
 );
 
 
 effect1: entity work.phoenix_effect1
 port map
 (
-  clk50    => clk50m,
-  clk10    => clk10m,
-  reset    => '0',
-  trigger  => sound_a(4),
-  filter   => sound_a(5),
-  divider  => sound_a(3 downto 0),
-  snd      => snd1
+	clk      => clk,
+	reset    => '0',
+	trigger  => sound_a(4),
+	filter   => sound_a(5),
+	divider  => sound_a(3 downto 0),
+	snd      => snd1
 );
 
 effect2 : entity work.phoenix_effect2
 port map
 (
-  clk50    => clk50m,
-  clk10    => clk10m,
-  reset    => '0',
-  trigger1 => sound_b(4),
-  trigger2 => sound_b(5),
-  divider  => sound_b(3 downto 0),
-  snd      => snd2
+	clk      => clk,
+	reset    => '0',
+	trigger1 => sound_b(4),
+	trigger2 => sound_b(5),
+	divider  => sound_b(3 downto 0),
+	snd      => snd2
 );
 
 effect3 : entity work.phoenix_effect3
 port map
 (
-  clk50    => clk50m,
-  clk10    => clk10m,
-  reset    => '0',
-  trigger1 => sound_b(6),
-  trigger2 => sound_b(7),
-  snd      => snd3
+	clk      => clk,
+	reset    => '0',
+	trigger1 => sound_b(6),
+	trigger2 => sound_b(7),
+	snd      => snd3
 );
 
 sound_burn <= sound_b(4);
@@ -442,11 +430,11 @@ sound_ab <= sound_b & sound_a;
 music: entity work.phoenix_music
 port map
 (
-  clk10    => clk10m,
-  reset    => '0',
-  trigger  => sound_a(7),
-  sel_song => sound_a(6),
-  snd      => song
+	clk      => clk,
+	reset    => '0',
+	trigger  => sound_a(7),
+	sel_song => sound_a(6),
+	snd      => song
 );
 
 -- mix effects and music
