@@ -368,47 +368,45 @@ with flip1 select
 -- Decharge : VF2 =  2621, k2 = 16 (R2)
 -- Div = 2^6
 
-process (clk50)
- variable cnt: integer range 0 to imax(Osc3_ikc,Osc3_ikd) := 0;
-begin
- if rising_edge(clk50) then
-  if reset = '1' then
-   cnt  := 0;
-   u_c3 <= (others => '0');
-   flip3 <= '0';
-  else
-   if u_c3 > u_ctrl   then flip3 <= '0'; end if;
-   if u_c3 < u_ctrl/2 then flip3 <= '1'; end if; 
-   cnt := cnt + 1;
-   if flip3 = '1' then
-    if cnt = Osc3_ikc then
-     cnt := 0;
-     u_c3 <= u_c3 + (Osc3_iVFc - u_c3)/Osc3_div;
-    end if;
-   else
-    if cnt = Osc3_ikd then
-     cnt := 0;
-     u_c3 <= u_c3 - (u_c3 - Osc3_iVFd)/Osc3_div;
-    end if;
-   end if;
-  end if;
- end if;
-end process;
-
 -- Diviseur
 -- LS163 : Count up, Sync load when 0xF (no toggle sound if divider = 0xF)
 -- LS74  : Divide by 2
 
-process (flip3)
- variable cnt: unsigned(3 downto 0) := (others => '0');
+process (clk50)
+	variable cnt: integer range 0 to imax(Osc3_ikc,Osc3_ikd) := 0;
+	variable cnt2: unsigned(3 downto 0) := (others => '0');
 begin
- if rising_edge(flip3) then
-  cnt := cnt + 1;
-  if cnt = "0000" then
-   cnt := unsigned(divider);
-   if divider /= "1111" then sound <=  not sound; end if;
-  end if;
- end if;
+	if rising_edge(clk50) then
+		if reset = '1' then
+			cnt  := 0;
+			u_c3 <= (others => '0');
+			flip3 <= '0';
+		else
+			if u_c3 > u_ctrl   then flip3 <= '0'; end if;
+			if u_c3 < u_ctrl/2 then
+				flip3 <= '1';
+				if flip3 = '0' then
+					cnt2 := cnt2 + 1;
+					if cnt2 = "0000" then
+						cnt2 := unsigned(divider);
+						if divider /= "1111" then sound <=  not sound; end if;
+					end if;
+				end if;
+			end if; 
+			cnt := cnt + 1;
+			if flip3 = '1' then
+				if cnt = Osc3_ikc then
+					cnt := 0;
+					u_c3 <= u_c3 + (Osc3_iVFc - u_c3)/Osc3_div;
+				end if;
+			else
+				if cnt = Osc3_ikd then
+					cnt := 0;
+					u_c3 <= u_c3 - (u_c3 - Osc3_iVFd)/Osc3_div;
+				end if;
+			end if;
+		end if;
+	end if;
 end process;
 
 with trigger2 select

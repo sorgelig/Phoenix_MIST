@@ -20,7 +20,7 @@ library ieee;
 
 entity dac is
 	generic (
-		C_bits  : integer := 36
+		C_bits  : integer := 12
 	);
 	port (
 		clk_i   : in  std_logic;

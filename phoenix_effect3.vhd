@@ -246,38 +246,37 @@ k_ch <= shift_right(((u_ctrl1/2 + u_ctrl2/2) * to_unsigned(Oscmin_ikc-Oscmax_ikc
 -- Decharge : VF2 =  2621, k2   = 20      (R2, C)
 -- Div = 2^7
 
-process (clk50)
- variable cnt: integer range 0 to imax(imax(Oscmin_ikc,Oscmin_ikd), imax(Oscmax_ikc,Oscmax_ikd))+256 := 0;
-begin
- if rising_edge(clk50) then
-  if reset = '1' then
-   cnt  := 0;
-   u_c3 <= (others => '0');
-  else
-   if u_c3 > X"AAAA" then flip3 <= '0'; end if;
-   if u_c3 < X"5555" then flip3 <= '1'; end if; 
-   cnt := cnt + 1;
-   if flip3 = '1' then
-    if cnt > k_ch then
-     cnt := 0;
-     u_c3 <= u_c3 + (Osc_iVFc - u_c3)/Osc_div;
-    end if;
-   else
-    if cnt > Oscmax_ikd then
-     cnt := 0;
-     u_c3 <= u_c3 - (u_c3 - Osc_iVFd)/Osc_div;
-    end if; 
-   end if;
-  end if;
- end if;
-end process;
-
 -- noise generator triggered by oscillator output
-process (flip3)
+
+process (clk50)
+	variable cnt: integer range 0 to imax(imax(Oscmin_ikc,Oscmin_ikd), imax(Oscmax_ikc,Oscmax_ikd))+256 := 0;
 begin
- if rising_edge(flip3) then
-  shift_reg <= shift_reg(16 downto 0) & not(shift_reg(17) xor shift_reg(16));
- end if;
+	if rising_edge(clk50) then
+		if reset = '1' then
+			cnt  := 0;
+			u_c3 <= (others => '0');
+		else
+			if u_c3 > X"AAAA" then flip3 <= '0'; end if;
+			if u_c3 < X"5555" then
+				flip3 <= '1';
+				if flip3 = '0' then
+					shift_reg <= shift_reg(16 downto 0) & not(shift_reg(17) xor shift_reg(16));
+				end if;
+			end if; 
+			cnt := cnt + 1;
+			if flip3 = '1' then
+				if cnt > k_ch then
+					cnt := 0;
+					u_c3 <= u_c3 + (Osc_iVFc - u_c3)/Osc_div;
+				end if;
+			else
+				if cnt > Oscmax_ikd then
+					cnt := 0;
+					u_c3 <= u_c3 - (u_c3 - Osc_iVFd)/Osc_div;
+				end if; 
+			end if;
+		end if;
+	end if;
 end process;
 
 -- modulated (chop) command1 voltage with noise generator output

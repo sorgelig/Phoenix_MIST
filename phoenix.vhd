@@ -20,6 +20,9 @@ generic (
 port(
 	clk_pixel    : in std_logic; -- 11 MHz for TV, 25 MHz for VGA
 	reset        : in std_logic;
+	ce_pix       : out std_logic;
+	
+	clk50m, clk10m : in std_logic;
 
 	dip_switch   : in std_logic_vector(7 downto 0);
 	-- game controls, normal logic '1':pressed, '0':released
@@ -31,7 +34,6 @@ port(
 	video_r      : out std_logic_vector(1 downto 0);
 	video_g      : out std_logic_vector(1 downto 0);
 	video_b      : out std_logic_vector(1 downto 0);
-	video_clk    : out std_logic;
 	video_vblank, video_hblank_bg, video_hblank_fg: out std_logic;
 	video_hs     : out std_logic;
 	video_vs     : out std_logic;
@@ -50,9 +52,6 @@ architecture struct of phoenix is
 
  signal reset_n: std_logic;
 
- signal hclk   : std_logic;
- signal hclk_n : std_logic;
- signal hclk_div: std_logic;
  signal hcnt   : std_logic_vector(9 downto 1);
  signal vcnt   : std_logic_vector(8 downto 1);
  signal sync   : std_logic;
@@ -61,6 +60,7 @@ architecture struct of phoenix is
  signal vblank       : std_logic;
  signal hblank_bkgrd : std_logic;
  signal hblank_frgrd : std_logic; 
+ signal ce_pix1 : std_logic;
 
  signal cpu_adr  : std_logic_vector(15 downto 0);
  signal cpu_di   : std_logic_vector( 7 downto 0);
@@ -109,8 +109,8 @@ architecture struct of phoenix is
 
  signal color_set : std_logic;
  signal color_id  : std_logic_vector(5 downto 0);
- signal rgb_0     : std_logic_vector(7 downto 0);
- signal rgb_1     : std_logic_vector(7 downto 0);
+ signal rgb_0     : std_logic_vector(2 downto 0);
+ signal rgb_1     : std_logic_vector(2 downto 0);
 
  signal player2      : std_logic := '0';
  signal pl2_cocktail : std_logic := '0';
@@ -162,6 +162,7 @@ end generate;
   port map
   (
     clk11    => clk_pixel,
+	 ce_pix   => ce_pix1,
     hcnt     => hcnt,
     vcnt     => vcnt,
     sync_hs  => video_hs,
@@ -174,36 +175,31 @@ end generate;
     reset    => reset
   );
   reset_n <= not reset;
+  ce_pix <= ce_pix1;
   
-  --video_vs <= '1';
-
-  process(clk_pixel)
-  begin
-    if rising_edge(clk_pixel) then
-      hclk <= not hclk;
-      hclk_n <= not hclk;
-    end if;
-  end process;
-
 -- microprocessor 8085
 cpu8085 : entity work.T8080se
- generic map(Mode => 2, T2Write => 0)
+generic map
+(
+	Mode => 2,
+	T2Write => 0
+)
 port map(
- RESET_n => reset_n,
- CLK     => clk_pixel,
- CLKEN  => '1', -- fixme: use it to make 5.5 MHz clock average
- READY  => rdy,
- HOLD  => '1',
- INT   => '1',
- INTE  => open,
- DBIN  => open,
- SYNC  => open, 
- VAIT  => open,
- HLDA  => open,
- WR_n  => cpu_wr_n,
- A     => cpu_adr,
- DI   => cpu_di,
- DO   => cpu_do
+	RESET_n => reset_n,
+	CLK     => clk_pixel,
+	CLKEN  => '1', -- fixme: use it to make 5.5 MHz clock average
+	READY  => rdy,
+	HOLD  => '1',
+	INT   => '1',
+	INTE  => open,
+	DBIN  => open,
+	SYNC  => open, 
+	VAIT  => open,
+	HLDA  => open,
+	WR_n  => cpu_wr_n,
+	A     => cpu_adr,
+	DI   => cpu_di,
+	DO   => cpu_do
 );
 
 -- mux prog, ram, vblank, switch... to processor data bus in
@@ -294,7 +290,6 @@ color_id  <=  (fr_bit0 or fr_bit1) &  fr_bit1 & fr_bit0 & fr_lin when (fr_bit0 o
 palette_adr <= '0' & color_set & color_id;
 
 -- output video to top level
-video_clk   <= hclk;
 video_vblank <= vblank;
 video_hblank_fg <= hblank_frgrd;
 video_hblank_bg <= hblank_bkgrd;
@@ -306,49 +301,55 @@ G_yes_tile_rom: if C_tile_rom generate
 -- foreground graphix ROM bit0
 frgnd_bit0 : entity work.prom_ic39
 port map(
- clk  => hclk_n,
- addr => frgnd_graph_adr,
- data => frgnd_bit0_graph
+	clk  => clk_pixel,
+	ce   => not ce_pix1,
+	addr => frgnd_graph_adr,
+	data => frgnd_bit0_graph
 );
 
 -- foreground graphix ROM bit1
 frgnd_bit1 : entity work.prom_ic40
 port map(
- clk  => hclk_n,
- addr => frgnd_graph_adr,
- data => frgnd_bit1_graph
+	clk  => clk_pixel,
+	ce   => not ce_pix1,
+	addr => frgnd_graph_adr,
+	data => frgnd_bit1_graph
 );
 
 -- background graphix ROM bit0
 bkgnd_bit0 : entity work.prom_ic23
 port map(
- clk  => hclk_n,
- addr => bkgnd_graph_adr,
- data => bkgnd_bit0_graph
+	clk  => clk_pixel,
+	ce   => not ce_pix1,
+	addr => bkgnd_graph_adr,
+	data => bkgnd_bit0_graph
 );
 
 -- background graphix ROM bit1
 bkgnd_bit1 : entity work.prom_ic24
 port map(
- clk  => hclk_n,
- addr => bkgnd_graph_adr,
- data => bkgnd_bit1_graph
+	clk  => clk_pixel,
+	ce   => not ce_pix1,
+	addr => bkgnd_graph_adr,
+	data => bkgnd_bit1_graph
 );
 
 -- color palette ROM RBG low intensity
 palette_0 : entity work.prom_palette_ic40
 port map(
- clk  => hclk,
- addr => palette_adr,
- data => rgb_0
+	clk  => clk_pixel,
+	ce   => ce_pix1,
+	addr => palette_adr(6 downto 0),
+	data => rgb_0
 );
 
 -- color palette ROM RBG high intensity
 palette_1 : entity work.prom_palette_ic41
 port map(
- clk  => hclk,
- addr => palette_adr,
- data => rgb_1
+	clk  => clk_pixel,
+	ce   => ce_pix1,
+	addr => palette_adr(6 downto 0),
+	data => rgb_1
 );
 end generate;
 
@@ -358,17 +359,17 @@ G_no_tile_rom: if not C_tile_rom generate
   frgnd_bit1_graph <= "00000000";
   bkgnd_bit0_graph <= bkgnd_graph_adr(10 downto 3);
   bkgnd_bit1_graph <= "00000000";
-  rgb_0 <= palette_adr;
-  rgb_1 <= palette_adr;
+  rgb_0 <= palette_adr(2 downto 0);
+  rgb_1 <= palette_adr(2 downto 0);
 end generate;
 
 -- Program PROM
 S_prog_rom_addr(C_prog_rom_addr_bits-1 downto 0) <= cpu_adr(C_prog_rom_addr_bits-1 downto 0);
 prog : entity work.phoenix_prog
 port map(
- clk  => clk_pixel,
- addr => S_prog_rom_addr,
- data => prog_do
+	clk  => clk_pixel,
+	addr => S_prog_rom_addr,
+	data => prog_do
 );
 
 -- foreground RAM   0x4000-0x433F
@@ -400,8 +401,8 @@ port map(
 effect1: entity work.phoenix_effect1
 port map
 (
-  clk50    => clk_pixel,
-  clk10    => clk_pixel,
+  clk50    => clk50m,
+  clk10    => clk10m,
   reset    => '0',
   trigger  => sound_a(4),
   filter   => sound_a(5),
@@ -412,8 +413,8 @@ port map
 effect2 : entity work.phoenix_effect2
 port map
 (
-  clk50    => clk_pixel,
-  clk10    => clk_pixel,
+  clk50    => clk50m,
+  clk10    => clk10m,
   reset    => '0',
   trigger1 => sound_b(4),
   trigger2 => sound_b(5),
@@ -424,8 +425,8 @@ port map
 effect3 : entity work.phoenix_effect3
 port map
 (
-  clk50    => clk_pixel,
-  clk10    => clk_pixel,
+  clk50    => clk50m,
+  clk10    => clk10m,
   reset    => '0',
   trigger1 => sound_b(6),
   trigger2 => sound_b(7),
@@ -441,7 +442,7 @@ sound_ab <= sound_b & sound_a;
 music: entity work.phoenix_music
 port map
 (
-  clk10    => clk_pixel,
+  clk10    => clk10m,
   reset    => '0',
   trigger  => sound_a(7),
   sel_song => sound_a(6),

@@ -135,7 +135,7 @@ begin
 			INT_n => INT_n,
 			NMI_n => One,
 			RESET_n => RESET_n,
-			BUSRQ_n => One,
+			BUSRQ_n => BUSRQ_n,
 			BUSAK_n => BUSAK_n,
 			CLK_n => CLK,
 			A => A,
