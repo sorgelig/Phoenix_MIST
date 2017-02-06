@@ -225,6 +225,25 @@ begin
 		joystick 		=> kbd_joy0
 	);
 
+	process(clk_88m)
+		variable cnt: integer range 0 to 6000000 := 0;
+	begin
+		if rising_edge(clk_88m) then
+			if status(3 downto 1) /= "000" then
+				cnt  :=  0;
+				coin <= status(1);
+				player_start <= status(3 downto 2);
+			else
+				if cnt < 6000000 then
+					cnt := cnt + 1;
+				else
+					coin <= '0';
+					player_start <= "00";
+				end if;
+			end if;
+		end if;
+	end process;
+
 	phoenix : entity work.phoenix
 	port map
 	(
@@ -232,9 +251,9 @@ begin
 		reset        => reset,
 		ce_pix       => ce_pix,
 		dip_switch   => dip_switch,
-		btn_coin     => kbd_joy0(3) or status(1),--ESC
-		btn_player_start(0) => kbd_joy0(1) or status(2),--1
-		btn_player_start(1) => kbd_joy0(2) or status(3),--2 
+		btn_coin     => kbd_joy0(3) or coin,--ESC
+		btn_player_start(0) => kbd_joy0(1) or player_start(0),--1
+		btn_player_start(1) => kbd_joy0(2) or player_start(1),--2 
 		btn_left     => joy(2) or kbd_joy0(5) or kbd_joy0(6),
 		btn_right    => joy(3) or kbd_joy0(4) or kbd_joy0(7),
 		btn_barrier  => joy(0) or kbd_joy0(2),--TAB
@@ -283,6 +302,6 @@ begin
 		VGA_HS => VGA_HS
 	);
 
-	LED <= '0';
+	LED <= '1';
 
 end struct;
